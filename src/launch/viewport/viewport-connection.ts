@@ -1,9 +1,6 @@
 editor.once('load', () => {
-    const icon = document.createElement('img');
+    const icon = document.createElement('div');
     icon.classList.add('connecting');
-    icon.src = 'https://playcanvas.com/static-assets/platform/images/loader_transparent.gif';
-    icon.width = 32;
-    icon.height = 32;
 
     let hidden = true;
 

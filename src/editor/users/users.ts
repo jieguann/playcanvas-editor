@@ -1,3 +1,5 @@
+import { config } from '@/editor/config';
+
 editor.once('load', () => {
     const users = {};
     const userRequests = {};
@@ -20,6 +22,13 @@ editor.once('load', () => {
 
     // Loads a user from the server
     editor.method('users:loadOne', (id, callback) => {
+        if (config.local?.enabled) {
+            const user = Number(id) === Number(config.self.id) ? config.self : config.owner;
+            users[id] = user;
+            callback(user);
+            return;
+        }
+
         if (users[id]) {
             return callback(users[id]);
         }

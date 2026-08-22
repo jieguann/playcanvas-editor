@@ -32,6 +32,25 @@ editor.once('load', () => {
     editor.method(
         'projects:getOne',
         (projectId: string, success?: (data: unknown) => void, errorFn?: (err: unknown) => void) => {
+            if (config.local?.enabled) {
+                success?.({
+                    ...config.project,
+                    id: config.project.id,
+                    name: config.project.name,
+                    description: config.project.description,
+                    access_level: 'admin',
+                    owner_id: config.owner.id,
+                    private_assets: config.project.privateAssets,
+                    primary_app_url: `${config.url.launch}${config.scene.id}${window.location.search}`,
+                    thumbnails: null,
+                    locked: false,
+                    fork_count: 0,
+                    views: 0,
+                    size: { total: config.owner.size || 0 }
+                });
+                return;
+            }
+
             const request = editor.api.globals.rest.projects
                 .projectGet({ projectId })
                 .on('load', (_status: number, data: unknown) => {
@@ -51,6 +70,10 @@ editor.once('load', () => {
 
     // Load current project
     editor.method('projects:getCurrent', (success?: (data: unknown) => void) => {
+        if (config.local?.enabled) {
+            editor.call('projects:getOne', String(config.project.id), success);
+            return;
+        }
         editor.api.globals.rest.projects
             .projectGet({ projectId: config.project.id })
             .on('load', (_status: number, data: unknown) => {

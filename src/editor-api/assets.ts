@@ -483,6 +483,25 @@ class Assets extends Events {
 
         this.emit('load:progress', 0.1);
 
+        if (api.localStore) {
+            await api.localStore.initialize();
+            const assets = api.localStore.listAssets();
+            for (const data of assets) {
+                const asset = new Asset({
+                    id: Number(data.item_id),
+                    uniqueId: Number(data.item_id),
+                    type: data.type,
+                    source: data.source,
+                    createdAt: data.createdAt
+                });
+                await asset.load();
+                this.add(asset);
+            }
+            this.emit('load:progress', 1);
+            this.emit('load:all');
+            return;
+        }
+
         const response = await fetch(
             `/api/projects/${api.projectId}/assets?branchId=${api.branchId}&view=${options.view || 'designer'}`
         );
@@ -539,6 +558,25 @@ class Assets extends Events {
         this.clear();
 
         this.emit('load:progress', 0.1);
+
+        if (api.localStore) {
+            await api.localStore.initialize();
+            const assets = api.localStore.listAssets();
+            for (const data of assets) {
+                const asset = new Asset({
+                    id: Number(data.item_id),
+                    uniqueId: Number(data.item_id),
+                    type: data.type,
+                    source: data.source,
+                    createdAt: data.createdAt
+                });
+                await asset.loadAndSubscribe();
+                this.add(asset);
+            }
+            this.emit('load:progress', 1);
+            this.emit('load:all');
+            return;
+        }
 
         const response = await fetch(
             `/api/projects/${api.projectId}/assets?branchId=${api.branchId}&view=${options.view || 'designer'}`
@@ -631,6 +669,15 @@ class Assets extends Events {
         try {
             const result = await uploadFile(data, settings, onProgress || this._defaultUploadProgressCallback);
             let asset = this.get(result.id);
+            if (api.localStore) {
+                if (!asset) {
+                    asset = new Asset({ id: result.id, uniqueId: result.id });
+                    await asset.loadAndSubscribe();
+                    this.add(asset);
+                } else {
+                    await asset.load();
+                }
+            }
             if (!asset) {
                 asset = await new Promise((resolve) => {
                     this.once(`add[${result.id}]`, (a: any) => {
@@ -1242,6 +1289,12 @@ class Assets extends Events {
      * @param assets - The assets
      */
     async delete(assets: Asset[]) {
+        if (api.localStore) {
+            await api.localStore.deleteAssets(assets.map((asset) => Number(asset.get('id'))));
+            assets.forEach((asset) => this.remove(asset));
+            return;
+        }
+
         const response = await fetch('/api/assets', {
             body: JSON.stringify({
                 assets: assets.map((a: any) => a.get('id')),

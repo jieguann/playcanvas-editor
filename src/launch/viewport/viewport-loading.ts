@@ -63,12 +63,10 @@ editor.once('load', () => {
                 wrapper.appendChild(splash);
                 splash.style.display = 'none';
 
-                const logo = document.createElement('img');
-                logo.src = 'https://playcanvas.com/static-assets/images/play_text_252_white.png';
+                const logo = document.createElement('strong');
+                logo.textContent = 'PLAYCANVAS LOCAL';
                 splash.appendChild(logo);
-                logo.onload = () => {
-                    splash.style.display = 'block';
-                };
+                splash.style.display = 'block';
 
                 const container = document.createElement('div');
                 container.id = 'progress-bar-container';

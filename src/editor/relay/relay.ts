@@ -3,6 +3,16 @@ import { RelayServer } from './relay-server';
 editor.on('start', () => {
     const relay = new RelayServer();
 
+    if ('local' in config && config.local?.enabled) {
+        editor.method('relay:isConnected', () => false);
+        editor.method('relay:joinRoom', () => undefined);
+        editor.method('relay:leaveRoom', () => undefined);
+        editor.method('relay:broadcast', () => undefined);
+        editor.method('relay:dm', () => undefined);
+        window.relay = relay;
+        return;
+    }
+
     if (editor.call('permissions:read')) {
         relay.connect(config.url.relay.ws);
     }

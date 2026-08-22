@@ -127,14 +127,18 @@ class Editor<T extends EditorMethods> extends Caller<T> {
      * Register the load and loaded events.
      */
     private _registerLoad() {
-        document.addEventListener(
-            'DOMContentLoaded',
-            () => {
-                this.emit('load');
-                queueMicrotask(() => this.emit('loaded'));
-            },
-            false
-        );
+        const onLoad = () => {
+            this.emit('load');
+            queueMicrotask(() => this.emit('loaded'));
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', onLoad, { once: true });
+        } else {
+            // Standalone mode loads the editor bundle after validating the
+            // selected project folder, which can be after DOMContentLoaded.
+            queueMicrotask(onLoad);
+        }
     }
 
     /**

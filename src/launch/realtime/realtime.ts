@@ -1,6 +1,22 @@
 import { share } from '@/common/sharedb';
+import { config } from '@/launch/config';
 
 editor.once('load', () => {
+    if (config.local?.enabled) {
+        const realtime = editor.api.globals.realtime;
+        const connection = realtime.connection;
+
+        editor.method('realtime:connection', () => connection.sharedb);
+        editor.method('realtime:connect', () => connection.connect('local://realtime'));
+
+        realtime.on('connecting', (attempt: number) => editor.emit('realtime:connecting', attempt));
+        realtime.on('connected', () => editor.emit('realtime:connected'));
+        realtime.on('authenticated', () => editor.emit('realtime:authenticated'));
+        realtime.on('disconnect', (reason: unknown) => editor.emit('realtime:disconnected', reason));
+        realtime.on('error', (error: unknown) => editor.emit('realtime:error', error));
+        return;
+    }
+
     let auth = false;
     let socket, connection;
     let data;

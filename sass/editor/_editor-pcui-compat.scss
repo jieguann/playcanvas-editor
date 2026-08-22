@@ -6,22 +6,9 @@
 
 $disabled-opacity: 0.4 * 100%;
 
-@font-face {
-    font-family: inconsolatamedium;
-    src: url('https://playcanvas.com/static-assets/fonts/Inconsolata-webfont.eot');
-    src:
-        url('https://playcanvas.com/static-assets/fonts/Inconsolata-webfont.eot?#iefix') format('embedded-opentype'),
-        url('https://playcanvas.com/static-assets/fonts/Inconsolata-webfont.woff2') format('woff2'),
-        url('https://playcanvas.com/static-assets/fonts/Inconsolata-webfont.woff') format('woff'),
-        url('https://playcanvas.com/static-assets/fonts/Inconsolata-webfont.ttf') format('truetype'),
-        url('https://playcanvas.com/static-assets/fonts/Inconsolata-webfont.svg#inconsolatamedium') format('svg');
-    font-weight: normal;
-    font-style: normal;
-}
-
 .fieldFont {
     // font-family: Monaco, Menlo, 'Ubuntu Mono', Consolas, source-code-pro, monospace;
-    font-family: inconsolatamedium, Monaco, Menlo, 'Ubuntu Mono', Consolas, source-code-pro, monospace;
+    font-family: 'Cascadia Mono', Consolas, monospace;
     font-weight: normal;
     font-size: 12px;
 }

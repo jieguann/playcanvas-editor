@@ -52,6 +52,17 @@ To initialize a local development environment for the Editor Frontend, ensure yo
 > [!NOTE]
 > This query parameter is also supported in the code editor and launch page
 
+## Standalone Local Mode
+
+To run the core Editor and Launch preview without a PlayCanvas account or backend connection:
+
+```sh
+npm install
+npm run local
+```
+
+Then open <http://127.0.0.1:3487> and choose a project folder. Scenes, settings, and uploaded assets are saved directly in that folder. See [Standalone local mode](docs/local-mode.md) for supported features and limitations.
+
 ## Library integration testing
 
 The Editor is built on the following open source libraries:

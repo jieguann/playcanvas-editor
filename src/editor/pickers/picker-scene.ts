@@ -281,7 +281,9 @@ editor.once('load', () => {
             if (event.button === 1) {
                 let url = `/editor/scene/${dropdownScene.id}`;
                 const params = new URLSearchParams(location.search);
-                if (params.has('use_local_frontend')) {
+                if ('local' in config && config.local?.enabled) {
+                    url += location.search;
+                } else if (params.has('use_local_frontend')) {
                     url += `?use_local_frontend=${params.get('use_local_frontend')}`;
                 }
                 window.open(url, '_blank');
@@ -382,7 +384,9 @@ editor.once('load', () => {
                 onSelect: () => {
                     let url = `/editor/scene/${dropdownScene.id}`;
                     const params = new URLSearchParams(location.search);
-                    if (params.has('use_local_frontend')) {
+                    if ('local' in config && config.local?.enabled) {
+                        url += location.search;
+                    } else if (params.has('use_local_frontend')) {
                         url += `?use_local_frontend=${params.get('use_local_frontend')}`;
                     }
                     window.open(url, '_blank');

@@ -228,6 +228,19 @@ class Asset extends Events {
      * Loads asset from the server without subscribing to realtime changes.
      */
     async load() {
+        if (api.localStore) {
+            const data = api.localStore.getDocument('assets', this.get('id'));
+            if (!data) throw new Error(`Could not load local asset: ${this.get('id')}`);
+            const localData = structuredClone(data);
+            localData.id = Number(localData.item_id);
+            localData.uniqueId = Number(localData.item_id);
+            delete localData.item_id;
+            delete localData.branch_id;
+            if (localData.file) localData.file.url = Asset.getFileUrl(localData.id, localData.file.filename);
+            for (const field in localData) this.set(field, localData[field]);
+            return;
+        }
+
         const response = await fetch(`/api/assets/${this.get('id')}?branchId=${api.branchId}`);
         if (!response.ok) {
             throw new Error(`${response.status}: ${response.statusText}`);
@@ -351,6 +364,7 @@ class Asset extends Events {
      * @returns The file URL
      */
     static getFileUrl(id: number, filename: string) {
+        if (api.localStore) return api.localStore.getFileUrl(id);
         return `/api/assets/${id}/file/${encodeURIComponent(filename)}?branchId=${api.branchId}`;
     }
 }

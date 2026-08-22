@@ -105,6 +105,12 @@ editor.once('load', () => {
         }
 
         const params = new URLSearchParams(location.search);
+        if (params.has('project')) {
+            query.push(`project=${encodeURIComponent(params.get('project')!)}`);
+        }
+        if (params.has('name')) {
+            query.push(`name=${encodeURIComponent(params.get('name')!)}`);
+        }
         if (params.has('use_local_engine')) {
             query.push(`use_local_engine=${params.get('use_local_engine')}`);
         } else if (releaseCandidate && launchOptions.releaseCandidate) {

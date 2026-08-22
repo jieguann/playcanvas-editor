@@ -104,6 +104,15 @@ type EditorSchemaCatalog = {
 
 type ModelSchema = EditorSchemaCatalog;
 
+type LocalConfig = {
+    enabled: true;
+    projectKey: string;
+    projectName: string;
+    storage: 'browser' | 'folder';
+    directoryId?: string;
+    documents: Record<string, Record<string, Record<string, any>>>;
+};
+
 type Url = {
     api: string;
     launch: string;
@@ -170,6 +179,7 @@ export type EditorBlankConfig = {
 };
 
 export type EditorConfig = {
+    local?: LocalConfig;
     version: string;
     self: {
         id: number;
@@ -259,6 +269,7 @@ export type CodeEditorConfig = {
 };
 
 export type LaunchConfig = {
+    local?: LocalConfig;
     self: {
         id: number;
         username: string;

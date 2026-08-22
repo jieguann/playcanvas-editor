@@ -31,6 +31,8 @@
         "fmt:fix": "prettier --write .",
         "lint": "stylelint sass && eslint",
         "lint:fix": "stylelint sass --fix && eslint --fix",
+        "local": "npm run build && node scripts/local-server.mjs",
+        "local:serve": "node scripts/local-server.mjs",
         "serve": "serve dist -p 3487 --cors",
         "test": "mocha",
         "test:api": "rollup -c test/editor-api/rollup.test.config.mjs && karma start test/editor-api/karma.conf.cjs --single-run",

@@ -108,6 +108,36 @@ editor.once('load', () => {
     editor.method('assets:pipeline:options', pipelineOptions);
 
     editor.method('assets:uploadFile', (args, fn) => {
+        if (config.local?.enabled) {
+            const data = {
+                id: args.asset?.get('id'),
+                folderId: args.parent?.get('id'),
+                filename: args.file?.name || args.name,
+                file: args.file,
+                type: args.type,
+                name: args.name,
+                data: args.data,
+                meta: args.meta,
+                preload: args.preloadDefault
+            };
+            const job = ++uploadJobs;
+            editor.call('status:job', `asset-upload:${job}`, 0);
+            editor.api.globals.assets
+                .upload(data, pipelineOptions(args.settings), (progress) => {
+                    editor.call('status:job', `asset-upload:${job}`, progress);
+                })
+                .then((asset) => {
+                    editor.call('status:job', `asset-upload:${job}`);
+                    fn?.(null, { id: asset.get('id') });
+                })
+                .catch((error) => {
+                    editor.call('status:error', error.message);
+                    editor.call('status:job', `asset-upload:${job}`);
+                    fn?.(error.message);
+                });
+            return;
+        }
+
         let request;
         if (args.asset) {
             const assetId = args.asset.get('id');

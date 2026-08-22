@@ -17,6 +17,8 @@ class LaunchEditor extends Editor<EditorMethods> {
         // Initialize API globals - order matters
         api.globals.schema = new api.Schema(config.schema);
         api.globals.messenger = new api.Messenger(new Messenger());
+        api.globals.localStore = config.local?.enabled ? new api.LocalProjectStore(config.local) : undefined;
+        if (api.globals.localStore) api.globals.realtime = new api.Realtime(api.globals.localStore);
     }
 }
 

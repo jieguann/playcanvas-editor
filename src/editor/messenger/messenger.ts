@@ -4,6 +4,11 @@ editor.on('start', () => {
         return;
     }
 
+    if ('local' in config && config.local?.enabled) {
+        editor.method('messenger:isConnected', () => false);
+        return;
+    }
+
     messenger.connect(config.url.messenger.ws);
 
     messenger.on('connect', () => {

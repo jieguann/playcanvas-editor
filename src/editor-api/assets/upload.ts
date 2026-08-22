@@ -88,6 +88,13 @@ async function uploadFile(
     settings: object = null,
     onProgress: (progress: number) => void = null
 ) {
+    if (api.localStore) {
+        onProgress?.(0);
+        const asset = await api.localStore.saveAsset(data, data.file);
+        onProgress?.(1);
+        return { id: asset.item_id };
+    }
+
     let method;
     let url;
 

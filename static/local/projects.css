@@ -1,0 +1,271 @@
+:root {
+    color-scheme: dark;
+    font-family:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #111719;
+    color: #e6ecee;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    background:
+        radial-gradient(circle at 20% 0%, rgb(41 70 75 / 45%), transparent 36rem),
+        linear-gradient(145deg, #111719, #182124 65%, #101517);
+}
+
+button,
+a {
+    font: inherit;
+}
+
+.project-shell {
+    width: min(960px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 72px 0 40px;
+}
+
+.project-shell header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 24px;
+    align-items: center;
+    padding-bottom: 40px;
+    border-bottom: 1px solid #304044;
+}
+
+.local-mark {
+    display: grid;
+    width: 64px;
+    height: 64px;
+    place-items: center;
+    border-radius: 16px;
+    background: #f36c3d;
+    color: #171b1c;
+    font-size: 25px;
+    font-weight: 900;
+    letter-spacing: -2px;
+}
+
+.eyebrow {
+    margin: 0 0 7px;
+    color: #f4875f;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+}
+
+h1,
+h2,
+p {
+    margin-top: 0;
+}
+
+h1 {
+    margin-bottom: 8px;
+    font-size: clamp(30px, 4vw, 44px);
+    letter-spacing: -0.035em;
+}
+
+.intro,
+.section-heading span,
+.project-row small,
+footer p,
+.empty p {
+    color: #94a7ab;
+}
+
+.intro,
+footer p,
+.empty p {
+    margin-bottom: 0;
+}
+
+button {
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.primary {
+    padding: 13px 20px;
+    background: #f36c3d;
+    color: #111719;
+    font-weight: 800;
+}
+
+.primary:hover {
+    background: #ff8256;
+}
+
+section {
+    padding: 34px 0;
+}
+
+.section-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+h2 {
+    margin-bottom: 0;
+    font-size: 17px;
+}
+
+.section-heading span {
+    font-size: 12px;
+}
+
+.project-list {
+    display: grid;
+    gap: 8px;
+}
+
+.project-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: center;
+    width: 100%;
+    padding: 16px;
+    border: 1px solid #304044;
+    background: #1c2629;
+    color: inherit;
+    text-align: left;
+}
+
+.project-row:hover {
+    border-color: #597077;
+    background: #222f32;
+}
+
+.project-row strong,
+.project-row small {
+    display: block;
+}
+
+.project-row small {
+    margin-top: 4px;
+}
+
+.open-label {
+    color: #f4875f;
+    font-weight: 700;
+}
+
+.folder-icon {
+    position: relative;
+    display: inline-block;
+    width: 27px;
+    height: 19px;
+    border-radius: 3px;
+    background: #e99b42;
+}
+
+.folder-icon::before {
+    position: absolute;
+    top: -5px;
+    left: 2px;
+    width: 12px;
+    height: 7px;
+    border-radius: 3px 3px 0 0;
+    background: #e99b42;
+    content: "";
+}
+
+.folder-icon.large {
+    margin-bottom: 14px;
+    transform: scale(1.45);
+}
+
+.empty {
+    padding: 48px 20px;
+    border: 1px dashed #3a4c50;
+    border-radius: 10px;
+    color: #c9d4d6;
+    text-align: center;
+}
+
+.empty p {
+    margin-top: 7px;
+}
+
+.error {
+    margin: 20px 0 0;
+    padding: 12px 14px;
+    border: 1px solid #8d4139;
+    border-radius: 7px;
+    background: #3a211f;
+    color: #ffb5a9;
+}
+
+footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px;
+    border: 1px solid #304044;
+    border-radius: 10px;
+    background: rgb(27 37 40 / 65%);
+}
+
+footer p {
+    margin-top: 5px;
+}
+
+.secondary,
+.local-startup-error a {
+    padding: 10px 14px;
+    background: #35464a;
+    color: #e6ecee;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.secondary:hover,
+.local-startup-error a:hover {
+    background: #43595e;
+}
+
+.local-startup-error {
+    width: min(540px, calc(100% - 40px));
+    margin: 14vh auto 0;
+    padding: 30px;
+    border: 1px solid #405358;
+    border-radius: 12px;
+    background: #1c2629;
+    color: #e6ecee;
+}
+
+.local-startup-error a {
+    display: inline-block;
+    margin-top: 12px;
+}
+
+@media (max-width: 700px) {
+    .project-shell {
+        padding-top: 38px;
+    }
+
+    .project-shell header {
+        grid-template-columns: auto 1fr;
+    }
+
+    .primary {
+        grid-column: 1 / -1;
+    }
+
+    .section-heading,
+    footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}

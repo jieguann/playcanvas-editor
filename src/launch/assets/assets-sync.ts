@@ -28,6 +28,10 @@ editor.once('load', () => {
         filename: string,
         useBundles?: boolean
     ) {
+        if (editor.api.globals.localStore) {
+            return editor.api.globals.localStore.getFileUrl(Number(id));
+        }
+
         if (useBundles) {
             // if we are using bundles then this URL should be the URL
             // in the tar archive
@@ -453,6 +457,15 @@ editor.once('load', () => {
     // load all assets
     editor.on('realtime:authenticated', () => {
         pendingOps.clear();
+        if (editor.api.globals.localStore) {
+            const assets = editor.api.globals.localStore.listAssets().map((asset) => ({
+                id: String(asset.item_id),
+                uniqueId: String(asset.item_id),
+                name: asset.name
+            }));
+            onLoad(assets);
+            return;
+        }
         editor.api.globals.rest.projects
             .projectAssets('launcher', true)
             .on('load', (_status: number, data: { id: string; uniqueId: string; name?: string }[]) => {

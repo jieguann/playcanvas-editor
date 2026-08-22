@@ -837,7 +837,7 @@ strong {
                 &::before {
                     display: block;
                     content: ' ';
-                    background-image: url('https://playcanvas.com/static-assets/images/bcg_primary.jpg');
+                    background-image: linear-gradient(135deg, #283538, #364346);
                     background-repeat: no-repeat;
                     background-position: center center;
                     background-size: cover;

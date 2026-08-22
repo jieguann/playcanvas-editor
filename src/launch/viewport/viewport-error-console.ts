@@ -23,8 +23,8 @@ editor.once('load', () => {
     );
 
     // close button img
-    const closeBtn = document.createElement('img');
-    closeBtn.src = 'https://playcanvas.com/static-assets/images/icons/fa/16x16/remove.png';
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
     panel.appendChild(closeBtn);
 
     closeBtn.addEventListener('click', () => {

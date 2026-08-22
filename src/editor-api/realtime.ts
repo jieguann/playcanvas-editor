@@ -1,5 +1,7 @@
 import { Events } from '@playcanvas/observer';
 
+import { LocalRealtimeConnection } from './local/connection';
+import type { LocalProjectStore } from './local/project-store';
 import { RealtimeAssets } from './realtime/assets';
 import { RealtimeConnection } from './realtime/connection';
 import { RealtimeScenes } from './realtime/scenes';
@@ -16,9 +18,9 @@ class Realtime extends Events {
 
     private _assets: RealtimeAssets;
 
-    constructor() {
+    constructor(localStore?: LocalProjectStore) {
         super();
-        this._connection = new RealtimeConnection(this);
+        this._connection = localStore ? new LocalRealtimeConnection(this, localStore) : new RealtimeConnection(this);
         this._scenes = new RealtimeScenes(this, this.connection);
         this._assets = new RealtimeAssets(this, this.connection);
     }

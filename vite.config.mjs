@@ -24,6 +24,12 @@ const STATIC_ASSETS = [
     { src: 'src/json/monaco-themes', dest: 'dist/json/monaco-themes' },
     { src: 'static/json', dest: 'dist/static/json' },
     { src: 'static/img', dest: 'dist/static/img' },
+    { src: 'static/local/index.html', dest: 'dist/index.html' },
+    { src: 'static/local/index.html', dest: 'dist/local/index.html' },
+    { src: 'static/local/editor.html', dest: 'dist/editor/index.html' },
+    { src: 'static/local/launch.html', dest: 'dist/launch/index.html' },
+    { src: 'static/local/projects.css', dest: 'dist/css/local-projects.css' },
+    { src: 'node_modules/playcanvas/build/playcanvas.js', dest: 'dist/js/playcanvas.js' },
     { src: 'src/wasm/lodepng', dest: 'dist/wasm/lodepng' },
     { src: 'src/wasm/codecs', dest: 'dist/wasm/codecs' },
     { src: 'node_modules/@playcanvas/msdfgen-wasm/dist/msdfgen.wasm', dest: 'dist/js/msdfgen.wasm' },
@@ -242,6 +248,27 @@ const shared = {
 
 /** @type {BuildOptions[]} */
 const PAGE_TARGETS = [
+    {
+        ...shared,
+        entryPoints: ['src/local/project-picker.ts'],
+        outfile: 'dist/js/project-picker.js',
+        format: 'iife',
+        plugins: [stubNodeBuiltins]
+    },
+    {
+        ...shared,
+        entryPoints: ['src/local/page-loader.ts'],
+        outfile: 'dist/js/local-page-loader.js',
+        format: 'iife',
+        plugins: [stubNodeBuiltins]
+    },
+    {
+        ...shared,
+        entryPoints: ['src/local/bootstrap.ts'],
+        outfile: 'dist/js/local-bootstrap.js',
+        format: 'iife',
+        plugins: [stubNodeBuiltins]
+    },
     {
         ...shared,
         entryPoints: ['src/editor/index.ts'],

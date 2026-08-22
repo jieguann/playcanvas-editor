@@ -3,6 +3,7 @@ import type { Clipboard } from './clipboard';
 import type { Entities } from './entities';
 import type { History } from './history';
 import type { Jobs } from './jobs';
+import type { LocalProjectStore } from './local/project-store';
 import type { Messenger } from './messenger';
 import type { Realtime } from './realtime';
 import type { Rest } from './rest';
@@ -75,6 +76,9 @@ const globals: {
      */
     rest: Rest;
 
+    /** Browser storage used by standalone local mode. */
+    localStore?: LocalProjectStore;
+
     /**
      * The user's access token
      * @category Internal
@@ -132,6 +136,7 @@ const globals: {
     jobs: undefined,
     clipboard: undefined,
     rest: undefined,
+    localStore: undefined,
     accessToken: undefined,
     projectId: undefined,
     branchId: undefined,

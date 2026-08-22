@@ -41,5 +41,7 @@ export * from './realtime';
 export * from './messenger';
 export * from './jobs';
 export * from './localstorage';
+export * from './local/project-store';
+export * from './local/connection';
 export * from './clipboard';
 export * from './rest';

@@ -13,6 +13,12 @@ editor.once('load', () => {
             itemId: number,
             callback: (err: unknown, scene?: { uniqueId: number }) => void
         ) {
+            if (editor.api.globals.localStore) {
+                const scene = editor.api.globals.localStore.getScene(itemId);
+                callback(scene ? null : new Error(`Scene ${itemId} not found`), scene);
+                return;
+            }
+
             // Get a specific scene from the server and pass result to callback
             editor.api.globals.rest.scenes
                 .sceneGet(itemId, true)

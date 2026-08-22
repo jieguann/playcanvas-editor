@@ -254,7 +254,7 @@ editor.once('load', () => {
             mouse: useMouse ? new pc.Mouse(canvas) : null,
             gamepads: useGamepads ? new pc.GamePads() : null,
             touch: useTouch && pc.platform.touch ? new pc.TouchDevice(canvas) : null,
-            assetPrefix: '/api/',
+            assetPrefix: config.local?.enabled ? '' : '/api/',
             scriptPrefix: scriptPrefix,
             scriptsOrder: projectSettings.get('scripts') || []
         };
@@ -275,6 +275,9 @@ editor.once('load', () => {
         createOptions.xr = pc.XrManager;
 
         app.init(createOptions);
+        if (config.local?.enabled) {
+            app.assets.prefix = '';
+        }
         gfxCreated = true;
 
         // when app is initialized (which is async), emit event to allow dependencies to load

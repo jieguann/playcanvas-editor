@@ -15,6 +15,14 @@ mcp.method('launch:start', (options: any = {}) => {
         return { error: 'No scene loaded, or launch URL unavailable. Load a scene in the editor and retry.' };
     }
     const params = new URLSearchParams();
+    const editorParams = new URLSearchParams(window.location.search);
+
+    if (editorParams.has('project')) {
+        params.set('project', editorParams.get('project')!);
+    }
+    if (editorParams.has('name')) {
+        params.set('name', editorParams.get('name')!);
+    }
 
     params.set('debug', String(options.debug ?? true));
     if (options.device) {

@@ -70,7 +70,8 @@ class MainEditor extends Editor<EditorMethods> {
         api.globals.history = new api.History();
         api.globals.selection = new api.Selection();
         api.globals.schema = new api.Schema(config.schema);
-        api.globals.realtime = new api.Realtime();
+        api.globals.localStore = config.local?.enabled ? new api.LocalProjectStore(config.local) : undefined;
+        api.globals.realtime = new api.Realtime(api.globals.localStore);
         api.globals.settings = new api.Settings();
         api.globals.messenger = new api.Messenger(new Messenger());
         api.globals.assets = new api.Assets({ autoSubscribe: true });

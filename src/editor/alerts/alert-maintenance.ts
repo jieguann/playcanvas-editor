@@ -12,6 +12,10 @@ const ISSUES_URL = url.toString();
 const RATE_LIMIT_URL = 'https://api.github.com/rate_limit';
 
 editor.once('load', async () => {
+    if ('local' in config && config.local?.enabled) {
+        return;
+    }
+
     // FIXME: non authenticated requests to GitHub API are rate limited to 60 per hour per IP
     const res1 = await fetch(RATE_LIMIT_URL);
     if (!res1.ok) {

@@ -94,6 +94,15 @@ editor.once('load', () => {
     const menu = new Menu({
         items: [
             {
+                text: 'Switch Project',
+                icon: 'E137',
+                onIsVisible: () => 'local' in config && Boolean(config.local?.enabled),
+                onSelect: async () => {
+                    await editor.api.globals.localStore?.flush();
+                    window.location.assign('/');
+                }
+            },
+            {
                 // Scene management (like "File" menu)
                 text: 'Scenes',
                 icon: 'E147',
