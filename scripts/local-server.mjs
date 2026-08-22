@@ -62,6 +62,26 @@ const projectIdForPath = (directory) => {
 
 const getProject = async (id) => (await readRegistry()).find((project) => project.id === id);
 
+// Drop the local-project authoring guide into new project folders so it travels with
+// the folder when it is copied or shared, rather than only existing on this machine.
+const skillFilename = 'SKILL.md';
+const skillSource = resolve('.claude/skills/playcanvas-local-project', skillFilename);
+const skillTargetDirectory = join('.claude', 'skills', 'playcanvas-local-project');
+
+const writeProjectSkill = async (directory) => {
+    const target = join(directory, skillTargetDirectory, skillFilename);
+    // never clobber a copy the user has edited
+    if (existsSync(target)) return;
+    try {
+        const contents = await readFile(skillSource, 'utf8');
+        await mkdir(join(directory, skillTargetDirectory), { recursive: true });
+        await writeFile(target, contents, 'utf8');
+    } catch (error) {
+        // scaffolding is a convenience; never fail opening a project over it
+        console.warn(`Could not write the project authoring guide: ${error.message}`);
+    }
+};
+
 const getStartSceneId = async (project) => {
     try {
         const stored = JSON.parse(await readFile(join(project.path, projectFilename), 'utf8'));
@@ -171,6 +191,7 @@ const handleProjectApi = async (request, response, url) => {
             lastOpened: Date.now()
         };
         await mkdir(directory, { recursive: true });
+        await writeProjectSkill(directory);
         await writeRegistry([project, ...projects.filter((item) => item.id !== id)]);
         sendJson(response, 200, await projectInfo(project));
         return true;
