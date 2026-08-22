@@ -10,7 +10,6 @@ const projectList = document.querySelector<HTMLElement>('[data-project-list]')!;
 const emptyState = document.querySelector<HTMLElement>('[data-empty-state]')!;
 const errorMessage = document.querySelector<HTMLElement>('[data-error]')!;
 const chooseButton = document.querySelector<HTMLButtonElement>('[data-choose-folder]')!;
-const legacyButton = document.querySelector<HTMLButtonElement>('[data-open-legacy]')!;
 
 const showMessage = (message: string) => {
     errorMessage.textContent = message;
@@ -86,11 +85,6 @@ chooseButton.addEventListener('click', async () => {
         chooseButton.disabled = false;
         chooseButton.textContent = originalText;
     }
-});
-
-legacyButton.addEventListener('click', () => {
-    const query = new URLSearchParams({ project: 'legacy', name: 'Legacy Browser Project' });
-    window.location.assign(`/editor/scene/1?${query}`);
 });
 
 refreshProjects().catch(showError);

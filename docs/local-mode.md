@@ -43,7 +43,7 @@ my-project/
 
 The start page lists recently selected folders. Use **Switch Project** in the Editor menu to return to that list. The local server stores the recent-project list in `~/.playcanvas-local-editor/projects.json`; it contains folder locations, not project contents. Removing that list does not delete project folders. Select a folder again to restore it to the list.
 
-The local Node server opens the operating system's folder chooser and performs file access on behalf of the local page. No PlayCanvas service receives the selected path or project data, and no browser folder-access API is required. The previous browser-only project remains available through **Open legacy project**.
+The local Node server opens the operating system's folder chooser and performs file access on behalf of the local page. No PlayCanvas service receives the selected path or project data, and no browser folder-access API is required.
 
 ## What works locally
 
@@ -59,5 +59,3 @@ The local pages use a restrictive content-security policy so they do not automat
 ## Local-mode boundaries
 
 Features that inherently depend on PlayCanvas services are unavailable: accounts and teams, live collaboration, version control and checkpoints, publishing, the Asset Store, hosted builds, and server-side asset conversion. Raw browser-compatible asset files can be stored locally, but backend conversion workflows such as FBX import are not reproduced.
-
-The legacy project is still stored in browser `localStorage` and IndexedDB. Clearing site data for `127.0.0.1:3487` deletes that legacy project, but it does not delete folder projects.

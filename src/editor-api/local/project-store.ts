@@ -16,10 +16,8 @@ type LocalLightEntity = {
 
 type LocalProjectOptions = {
     enabled: boolean;
-    projectKey: string;
     projectName: string;
-    storage: 'browser' | 'folder';
-    directoryId?: string;
+    directoryId: string;
     documents: Documents;
 };
 
@@ -31,24 +29,15 @@ const safeFilename = (value: string) =>
         .join('')
         .replace(/[. ]+$/g, '') || 'asset';
 
-/**
- * Storage for the standalone editor. Folder projects use a JSON manifest and
- * asset files in the selected directory; legacy projects retain browser storage.
- */
+/** Storage for a standalone project folder containing a JSON manifest and asset files. */
 class LocalProjectStore extends Events {
-    private _key: string;
-
     private _defaults: Documents;
 
     private _projectName: string;
 
-    private _storage: 'browser' | 'folder';
-
-    private _directoryId?: string;
+    private _directoryId: string;
 
     private _documents: Documents = {};
-
-    private _database: IDBDatabase | null = null;
 
     private _fileUrls = new Map<number, string>();
 
@@ -58,9 +47,7 @@ class LocalProjectStore extends Events {
 
     constructor(options: LocalProjectOptions) {
         super();
-        this._key = `playcanvas-local:${options.projectKey}`;
         this._projectName = options.projectName;
-        this._storage = options.storage;
         this._directoryId = options.directoryId;
         this._defaults = clone(options.documents || {});
     }
@@ -77,12 +64,7 @@ class LocalProjectStore extends Events {
     }
 
     private async _initialize() {
-        if (this._storage === 'folder') {
-            await this._initializeFolder();
-        } else {
-            const saved = localStorage.getItem(`${this._key}:documents`);
-            this._documents = saved ? JSON.parse(saved) : clone(this._defaults);
-        }
+        await this._initializeFolder();
 
         // New document types added by later editor versions should be available
         // without overwriting anything the user has already saved.
@@ -95,21 +77,11 @@ class LocalProjectStore extends Events {
 
         this._migrateStarterLights();
 
-        if (this._storage === 'folder') {
-            await this._readFolderAssetFiles();
-            await this._writeFolderDocuments(this._documents);
-        } else {
-            this._database = await this._openDatabase();
-            const files = await this._readAllFiles();
-            for (const { id, blob } of files) {
-                this._setFileUrl(id, blob);
-            }
-            this._persist();
-        }
+        await this._readFolderAssetFiles();
+        await this._writeFolderDocuments(this._documents);
     }
 
     private async _initializeFolder() {
-        if (!this._directoryId) throw new Error('No project folder was selected.');
         const response = await fetch(this._folderUrl('/manifest'));
         if (response.status === 404) {
             this._documents = clone(this._defaults);
@@ -130,7 +102,6 @@ class LocalProjectStore extends Events {
     }
 
     private _folderUrl(path: string) {
-        if (!this._directoryId) throw new Error('No project folder was selected.');
         return `/local-api/projects/${encodeURIComponent(this._directoryId)}${path}`;
     }
 
@@ -154,35 +125,11 @@ class LocalProjectStore extends Events {
         }
     }
 
-    private _openDatabase() {
-        return new Promise<IDBDatabase>((resolve, reject) => {
-            const request = indexedDB.open(`${this._key}:files`, 1);
-            request.onupgradeneeded = () => {
-                request.result.createObjectStore('files', { keyPath: 'id' });
-            };
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
-
-    private _readAllFiles() {
-        if (!this._database) return Promise.resolve([] as { id: number; blob: Blob }[]);
-        return new Promise<{ id: number; blob: Blob }[]>((resolve, reject) => {
-            const request = this._database.transaction('files').objectStore('files').getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
-
     private _persist() {
-        if (this._storage === 'folder') {
-            const snapshot = clone(this._documents);
-            this._writeQueue = this._writeQueue
-                .then(() => this._writeFolderDocuments(snapshot))
-                .catch((error) => console.error('Could not save the local folder project.', error));
-        } else {
-            localStorage.setItem(`${this._key}:documents`, JSON.stringify(this._documents));
-        }
+        const snapshot = clone(this._documents);
+        this._writeQueue = this._writeQueue
+            .then(() => this._writeFolderDocuments(snapshot))
+            .catch((error) => console.error('Could not save the local folder project.', error));
     }
 
     private async _writeFolderDocuments(documents: Documents) {
@@ -197,12 +144,6 @@ class LocalProjectStore extends Events {
             })
         });
         if (!response.ok) throw new Error(`Could not save the project folder (${response.status}).`);
-    }
-
-    private _setFileUrl(id: number, blob: Blob) {
-        const previous = this._fileUrls.get(id);
-        if (previous) URL.revokeObjectURL(previous);
-        this._fileUrls.set(id, URL.createObjectURL(blob));
     }
 
     getDocument(collection: string, id: string | number) {
@@ -280,16 +221,14 @@ class LocalProjectStore extends Events {
         const id = existingId || Math.max(0, ...ids) + 1;
         const current = this.getDocument('assets', id) || {};
         const filename = data.filename || data.name || current.file?.filename;
-        const localPath =
-            current.file?.localPath ||
-            (this._storage === 'folder' ? `${id}-${safeFilename(filename || `asset-${id}`)}` : undefined);
+        const localPath = current.file?.localPath || `${id}-${safeFilename(filename || `asset-${id}`)}`;
         const file = blob
             ? {
                   filename,
                   size: blob.size,
                   hash: '',
                   variants: null,
-                  ...(localPath ? { localPath } : {})
+                  localPath
               }
             : current.file || null;
 
@@ -313,20 +252,11 @@ class LocalProjectStore extends Events {
             createdAt: current.createdAt || new Date().toISOString()
         };
 
-        if (blob && this._storage === 'folder' && localPath) {
+        if (blob) {
             const url = this._folderUrl(`/assets/${encodeURIComponent(localPath)}`);
             const response = await fetch(url, { method: 'PUT', body: blob });
             if (!response.ok) throw new Error(`Could not save the local asset (${response.status}).`);
             this._fileUrls.set(id, url);
-        } else if (blob && this._database) {
-            await new Promise<void>((resolve, reject) => {
-                const request = this._database!.transaction('files', 'readwrite')
-                    .objectStore('files')
-                    .put({ id, blob });
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
-            this._setFileUrl(id, blob);
         }
 
         this.setDocument('assets', id, asset);
@@ -342,26 +272,15 @@ class LocalProjectStore extends Events {
             .filter((path): path is string => Boolean(path));
         for (const id of ids) {
             delete this._documents.assets?.[id.toString()];
-            const url = this._fileUrls.get(id);
-            if (url) URL.revokeObjectURL(url);
             this._fileUrls.delete(id);
         }
         this._persist();
 
-        if (this._storage === 'folder') {
-            for (const path of localPaths) {
-                const response = await fetch(this._folderUrl(`/assets/${encodeURIComponent(path)}`), {
-                    method: 'DELETE'
-                });
-                if (!response.ok) throw new Error(`Could not delete the local asset (${response.status}).`);
-            }
-        } else if (this._database) {
-            await new Promise<void>((resolve, reject) => {
-                const transaction = this._database.transaction('files', 'readwrite');
-                for (const id of ids) transaction.objectStore('files').delete(id);
-                transaction.oncomplete = () => resolve();
-                transaction.onerror = () => reject(transaction.error);
+        for (const path of localPaths) {
+            const response = await fetch(this._folderUrl(`/assets/${encodeURIComponent(path)}`), {
+                method: 'DELETE'
             });
+            if (!response.ok) throw new Error(`Could not delete the local asset (${response.status}).`);
         }
         await this.flush();
     }

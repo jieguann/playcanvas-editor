@@ -174,19 +174,16 @@ const settingsDocuments = {
 
 const origin = window.location.origin;
 const query = new URLSearchParams(window.location.search);
-const selectedProjectId = query.get('project') || 'legacy';
-const folderProject = selectedProjectId !== 'legacy';
-const selectedProjectName = query.get('name') || (folderProject ? 'Folder Project' : 'Legacy Browser Project');
+const selectedProjectId = query.get('project')!;
+const selectedProjectName = query.get('name') || 'Folder Project';
 const scenePathMatch = window.location.pathname.match(/\/(?:editor\/scene|launch)\/(\d+)/);
 const selectedSceneId = scenePathMatch?.[1] || '1';
 const localConfig: any = {
     version: 'local',
     local: {
         enabled: true,
-        projectKey: folderProject ? `folder:${selectedProjectId}` : 'default-project-v2',
         projectName: selectedProjectName,
-        storage: folderProject ? 'folder' : 'browser',
-        directoryId: folderProject ? selectedProjectId : undefined,
+        directoryId: selectedProjectId,
         documents: { scenes: { 1: scene }, assets: {}, settings: settingsDocuments, user_data: {} }
     },
     self: {
@@ -213,7 +210,7 @@ const localConfig: any = {
     project: {
         id: 1,
         name: selectedProjectName,
-        description: folderProject ? 'Stored in a local project folder' : 'Stored only in this browser',
+        description: 'Stored in a local project folder',
         permissions: { admin: [1], read: [], write: [] },
         private: true,
         privateAssets: true,

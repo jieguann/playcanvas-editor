@@ -106,10 +106,8 @@ type ModelSchema = EditorSchemaCatalog;
 
 type LocalConfig = {
     enabled: true;
-    projectKey: string;
     projectName: string;
-    storage: 'browser' | 'folder';
-    directoryId?: string;
+    directoryId: string;
     documents: Record<string, Record<string, Record<string, any>>>;
 };
 

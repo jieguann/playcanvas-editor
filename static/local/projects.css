@@ -74,13 +74,11 @@ h1 {
 .intro,
 .section-heading span,
 .project-row small,
-footer p,
 .empty p {
     color: #94a7ab;
 }
 
 .intro,
-footer p,
 .empty p {
     margin-bottom: 0;
 }
@@ -206,22 +204,6 @@ h2 {
     color: #ffb5a9;
 }
 
-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    padding: 22px;
-    border: 1px solid #304044;
-    border-radius: 10px;
-    background: rgb(27 37 40 / 65%);
-}
-
-footer p {
-    margin-top: 5px;
-}
-
-.secondary,
 .local-startup-error a {
     padding: 10px 14px;
     background: #35464a;
@@ -230,7 +212,6 @@ footer p {
     text-decoration: none;
 }
 
-.secondary:hover,
 .local-startup-error a:hover {
     background: #43595e;
 }
@@ -263,8 +244,7 @@ footer p {
         grid-column: 1 / -1;
     }
 
-    .section-heading,
-    footer {
+    .section-heading {
         align-items: stretch;
         flex-direction: column;
     }

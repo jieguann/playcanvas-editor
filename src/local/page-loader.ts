@@ -35,9 +35,14 @@ const validateProject = async (projectId: string) => {
 
 const start = async () => {
     const params = new URLSearchParams(window.location.search);
-    const projectId = params.get('project') || 'legacy';
+    const projectId = params.get('project');
 
-    if (projectId !== 'legacy') await validateProject(projectId);
+    if (!projectId) {
+        window.location.replace('/');
+        return;
+    }
+
+    await validateProject(projectId);
 
     await loadScript('/js/local-bootstrap.js');
     if (document.body.dataset.localPage === 'launch') {

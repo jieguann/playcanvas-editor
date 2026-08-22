@@ -76,7 +76,7 @@ const globals: {
      */
     rest: Rest;
 
-    /** Browser storage used by standalone local mode. */
+    /** Project-folder storage used by standalone local mode. */
     localStore?: LocalProjectStore;
 
     /**
