@@ -11,8 +11,9 @@ A standalone local project is a plain folder:
 MyProject/
   playcanvas-project.json     # the whole project: scenes, assets, settings
   assets/                     # asset file contents, one file per binary/text asset
-    1-rotate.js
-    2-my-material.json
+    rotate.js                 # mirrors the Editor's folder tree
+    scripts/                  # a folder asset named "scripts"
+      my-material.json
 ```
 
 Everything the editor knows lives in the manifest; `assets/` only holds file
@@ -32,12 +33,19 @@ open — usually a **cloud** project, not this folder. If `list_entities` return
 somewhere else. Do not "fix" that by loading scenes over MCP; edit the local
 JSON instead, and say so.
 
-**Close the project in the editor (or confirm it is not open) before hand-editing.**
-`LocalProjectStore` reads the manifest once on subscribe and then rewrites the
-*entire* file from its in-memory copy on every subsequent change
-(`_persist` → `PUT /local-api/projects/<id>/manifest`). Edits made on disk while
-the project is open are silently overwritten by the next editor change. Reload
-the project in the editor after editing.
+**You can hand-edit the manifest while the project is open.** The local server
+watches the folder and pushes changes to the editor over
+`GET /local-api/projects/<id>/events`; `LocalProjectStore` diffs them into json0
+operations and applies them live, so an asset or entity edited on disk appears
+without a reload. Entity additions, deletions, and reparenting rebuild the scene
+via `scene:raw`.
+
+Two things to know. Writes are guarded by a revision: every
+`PUT /local-api/projects/<id>/manifest` carries the revision it was based on, and
+the server answers **409** if the folder moved on in the meantime — the editor then
+asks the user whether to keep its version or reload from disk, and writes nothing
+until they choose. And write the whole file atomically where you can; a
+half-written manifest is skipped as invalid until the next complete write.
 
 ## Manifest layout
 
@@ -98,12 +106,19 @@ Component property names and defaults come from `src/local/schema.ts` →
 Four coordinated steps. Missing any one produces a script that is invisible, or
 present but never loaded.
 
-1. **Write the source file** to `assets/<id>-<safeFilename>.js`.
+1. **Write the source file** to `assets/<safeFilename>.js`, under one directory per
+   ancestor folder.
 
-   The `localPath` convention is `` `${id}-${safeFilename(filename)}` `` — see
-   `safeFilename` in `project-store.ts`: control chars and `<>:"/\|?*` become `-`,
-   and trailing dots/spaces are stripped. The local server rejects any path with a
-   directory component, so this is a flat filename.
+   `assets/` mirrors the folder tree in the Editor: an asset whose `path` is `[3]`, where
+   asset 3 is a folder named `scripts`, lives at `assets/scripts/<name>.js`. Each segment
+   and the filename pass through `safeFilename` in `project-store.ts` (control chars and
+   `<>:"/\|?*` become `-`, trailing dots/spaces stripped). Nested paths are allowed;
+   `..` and absolute paths are rejected.
+
+   `localPath` normally uses the asset name. When two assets in the same folder resolve to
+   the same name, the lowest id keeps the plain name and the others fall back to
+   `` `${id}-${name}` ``. Set `localPath` to whatever you actually wrote; the store
+   realigns the layout on open, so a mismatched value is corrected rather than honoured.
 
    Use `.js` for classic `pc.createScript` scripts, `.mjs`/`.ts` for ESM `Script`
    subclasses — the extension is what selects the parser. See

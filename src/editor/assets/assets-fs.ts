@@ -1,3 +1,24 @@
+type LocalAssetUpdates = Map<number, { path: number[]; localPath: string | null }>;
+
+/**
+ * Re-sync observers after the local store has rewritten the manifest. Both fields matter:
+ * 'path' is what refreshes the asset panel, and 'file.localPath' must not be left stale
+ * because it is in the editor's sync list and would be written back over the manifest.
+ */
+const applyLocalUpdates = (updates?: LocalAssetUpdates) => {
+    for (const [id, update] of updates ?? []) {
+        const asset = editor.call('assets:get', id);
+        if (!asset) continue;
+        const history = asset.history?.enabled;
+        if (asset.history) asset.history.enabled = false;
+        if (update.localPath !== null && asset.get('file')) {
+            asset.set('file.localPath', update.localPath);
+        }
+        asset.set('path', update.path);
+        if (asset.history) asset.history.enabled = history;
+    }
+};
+
 editor.once('load', () => {
     const getIds = function (
         assets: { get: (path: string) => string | number } | { get: (path: string) => string | number }[]
@@ -16,6 +37,26 @@ editor.once('load', () => {
     };
 
     editor.method('assets:fs:delete', (assets) => {
+        // Local mode has no backend to action the 'fs' message, so apply it directly.
+        const localStore = editor.api.globals.localStore;
+        if (localStore) {
+            localStore
+                .deleteAssetsRecursive(getIds(assets))
+                .then((result: { removed: number[] }) => {
+                    // Deleting a folder also removes its contents, so drop every id the
+                    // store actually deleted rather than just the ones passed in.
+                    for (const id of result.removed) {
+                        const asset = editor.call('assets:get', id);
+                        if (asset) editor.call('assets:remove', asset);
+                    }
+                })
+                .catch((error: unknown) => {
+                    console.error(error);
+                    editor.call('status:error', 'Could not delete the asset.');
+                });
+            return;
+        }
+
         editor.call('realtime:send', 'fs', {
             op: 'delete',
             ids: getIds(assets)
@@ -48,6 +89,27 @@ editor.once('load', () => {
             const error = `The assets "${conflictingAssetNames}" already exist in this location. Move Aborted.`;
             editor.call('status:error', error);
             return error;
+        }
+
+        // Local mode has no backend to action the 'fs' message. Apply it to the manifest,
+        // then set 'path' on each observer - that is what refreshes the panel and, via
+        // ObserverSync, persists the change.
+        const localStore = editor.api.globals.localStore;
+        if (localStore) {
+            localStore
+                .moveAssets(getIds(assets), target || null)
+                .then((result: { error?: string; updates?: LocalAssetUpdates }) => {
+                    if (result.error) {
+                        editor.call('status:error', result.error);
+                        return;
+                    }
+                    applyLocalUpdates(result.updates);
+                })
+                .catch((error: unknown) => {
+                    console.error(error);
+                    editor.call('status:error', 'Could not move the asset.');
+                });
+            return null;
         }
 
         editor.call('realtime:send', 'fs', {

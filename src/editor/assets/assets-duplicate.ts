@@ -30,6 +30,45 @@ editor.once('load', () => {
             }
         });
 
+        /**
+         * Read an asset's file contents.
+         *
+         * Local mode has no REST backend: `/api/assets/...` falls through to the static
+         * handler, which answers 200 with the editor's own HTML page, and `assetGetFile` is
+         * declared `notJson` so that HTML would be copied into the duplicate as if it were
+         * source. Read through the local store instead.
+         */
+        const readFileText = (
+            assetId: string | number,
+            filename: string,
+            onLoad: (text: string) => void,
+            onError: (error: unknown) => void
+        ) => {
+            const localStore = editor.api.globals.localStore;
+            if (localStore) {
+                const url = localStore.getFileUrl(Number(assetId));
+                if (!url) {
+                    onError('Could not read the asset file.');
+                    return;
+                }
+                fetch(url)
+                    .then((response) => {
+                        if (!response.ok) throw new Error(`${response.status}`);
+                        return response.text();
+                    })
+                    .then((text) => onLoad(text.replace(/\r\n?/g, '\n')))
+                    .catch(onError);
+                return;
+            }
+
+            editor.api.globals.rest.assets
+                .assetGetFile(String(assetId), filename, { branchId: config.self.branch.id })
+                .on('load', (_status: number, data: unknown) => {
+                    onLoad(typeof data === 'string' ? data.replace(/\r\n?/g, '\n') : '');
+                })
+                .on('error', (_status: number, errData: unknown) => onError(errData));
+        };
+
         // material / sprite — duplicate via assets:create with cloned data
         if (type === 'material' || type === 'sprite') {
             const newName = getUniqueName(asset.get('name'), siblings);
@@ -56,10 +95,10 @@ editor.once('load', () => {
             if (!filename) {
                 return;
             }
-            editor.api.globals.rest.assets
-                .assetGetFile(asset.get('id'), filename, { branchId: config.self.branch.id })
-                .on('load', (_status: number, data: unknown) => {
-                    const text = typeof data === 'string' ? data.replace(/\r\n?/g, '\n') : '';
+            readFileText(
+                asset.get('id'),
+                filename,
+                (text: string) => {
                     const sourceName = asset.get('name');
                     if (type === 'json') {
                         let parsed: object;
@@ -82,10 +121,11 @@ editor.once('load', () => {
                         text,
                         folder: parentApi
                     }).catch((err: unknown) => editor.call('status:error', err));
-                })
-                .on('error', (_status: number, errData: unknown) => {
+                },
+                (errData: unknown) => {
                     editor.call('status:error', errData ?? `Could not duplicate ${type} asset`);
-                });
+                }
+            );
             return;
         }
 
@@ -95,10 +135,10 @@ editor.once('load', () => {
             if (!sourceFilename) {
                 return;
             }
-            editor.api.globals.rest.assets
-                .assetGetFile(asset.get('id'), sourceFilename, { branchId: config.self.branch.id })
-                .on('load', (_status: number, data: unknown) => {
-                    const text = typeof data === 'string' ? data.replace(/\r\n?/g, '\n') : '';
+            readFileText(
+                asset.get('id'),
+                sourceFilename,
+                (text: string) => {
                     const validate = (name: string) =>
                         editor.call('assets:script:checkCollision', name, parentObserver);
                     editor.call(
@@ -113,10 +153,11 @@ editor.once('load', () => {
                         sourceFilename,
                         validate
                     );
-                })
-                .on('error', (_status: number, errData: unknown) => {
+                },
+                (errData: unknown) => {
                     editor.call('status:error', errData ?? 'Could not duplicate script asset');
-                });
+                }
+            );
         }
     });
 });

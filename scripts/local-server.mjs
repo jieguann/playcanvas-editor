@@ -1,10 +1,10 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { createReadStream, createWriteStream, existsSync, statSync } from 'node:fs';
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { createReadStream, createWriteStream, existsSync, statSync, watch } from 'node:fs';
+import { mkdir, readFile, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
-import { basename, extname, join, normalize, resolve, sep } from 'node:path';
+import { basename, dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { promisify } from 'node:util';
 
@@ -22,6 +22,7 @@ const types = {
     '.js': 'text/javascript; charset=utf-8',
     '.json': 'application/json; charset=utf-8',
     '.map': 'application/json; charset=utf-8',
+    '.mjs': 'text/javascript; charset=utf-8',
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
@@ -152,10 +153,197 @@ const readJsonBody = async (request) => {
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 };
 
+// Live sync: watch a project folder and push changes to any subscribed browser tab.
+//
+// The editor holds the whole project in memory, so a hand-edit on disk has to be pushed to
+// it or the next editor write would silently overwrite it. Server-Sent Events carry the
+// notification: same-origin, so the local pages' CSP allows it with no change, and no extra
+// dependency (a WebSocket would need both).
+const WATCH_DEBOUNCE = 150;
+const HEARTBEAT_INTERVAL = 25000;
+
+/** How many of our own recent writes to remember when recognising echoes. */
+const OWN_WRITE_MEMORY = 8;
+
+/** projectId -> { clients, watcher, timer, lastHash, ownHashes, heartbeat } */
+const subscriptions = new Map();
+
+const hashOf = (contents) => createHash('sha256').update(contents).digest('hex');
+
+const readManifestHash = async (project) => {
+    try {
+        return hashOf(await readFile(join(project.path, projectFilename), 'utf8'));
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * Record the bytes we just wrote so the watcher can recognise the editor's own save and not
+ * echo it back. Hashing the content is exact, unlike an mtime or a time window.
+ */
+const rememberWrite = (projectId, contents) => {
+    const subscription = subscriptions.get(projectId);
+    if (!subscription) return;
+    const hash = hashOf(contents);
+    subscription.lastHash = hash;
+    // Saves can queue up, and a filesystem event for an earlier one can arrive after a later
+    // one has already landed. Remembering only the newest hash would let those look external.
+    subscription.ownHashes.add(hash);
+    while (subscription.ownHashes.size > OWN_WRITE_MEMORY) {
+        subscription.ownHashes.delete(subscription.ownHashes.values().next().value);
+    }
+};
+
+/**
+ * Note an asset file we wrote, so the watcher does not report it as an external change.
+ * A path is enough here: unlike the manifest, the worst case is a redundant notification.
+ */
+const rememberAssetWrite = (projectId, localPath) => {
+    const subscription = subscriptions.get(projectId);
+    if (!subscription) return;
+    subscription.ownFiles.set(localPath.split(sep).join('/'), Date.now());
+};
+
+const notifySubscribers = (subscription, payload) => {
+    const frame = `data: ${JSON.stringify(payload)}\n\n`;
+    for (const client of subscription.clients) {
+        try {
+            client.write(frame);
+        } catch {
+            subscription.clients.delete(client);
+        }
+    }
+};
+
+const onFolderChange = async (projectId, project, changedPaths) => {
+    const subscription = subscriptions.get(projectId);
+    if (!subscription) return;
+
+    // Asset payloads that changed on disk. The editor holds decoded resources (textures,
+    // models) that would otherwise keep showing the old bytes.
+    const assetPaths = [...changedPaths].filter((path) => path.startsWith(`assets${sep}`) || path.startsWith('assets/'));
+    if (assetPaths.length) {
+        const relative = assetPaths.map((path) => path.replace(/^assets[/\\]/, '').split(sep).join('/'));
+        const external = relative.filter((path) => {
+            const written = subscription.ownFiles.get(path);
+            if (written === undefined) return true;
+            subscription.ownFiles.delete(path);
+            return false;
+        });
+        if (external.length) notifySubscribers(subscription, { type: 'assets', paths: external });
+    }
+
+    let contents;
+    try {
+        contents = await readFile(join(project.path, projectFilename), 'utf8');
+    } catch {
+        // the manifest may be mid-write or briefly absent; the next event will catch up
+        return;
+    }
+
+    try {
+        JSON.parse(contents);
+    } catch {
+        // a truncated read during someone else's write is normal, so wait for the next event
+        return;
+    }
+
+    const hash = hashOf(contents);
+    if (hash === subscription.lastHash || subscription.ownHashes.has(hash)) {
+        // One of our own writes echoing back through the watcher.
+        return;
+    }
+
+    subscription.lastHash = hash;
+    notifySubscribers(subscription, { type: 'manifest', revision: hash });
+};
+
+const stopWatching = (projectId) => {
+    const subscription = subscriptions.get(projectId);
+    if (!subscription) return;
+    clearTimeout(subscription.timer);
+    clearInterval(subscription.heartbeat);
+    try {
+        subscription.watcher?.close();
+    } catch {
+        // already closed
+    }
+    subscriptions.delete(projectId);
+};
+
+const startWatching = async (projectId, project) => {
+    const subscription = {
+        clients: new Set(),
+        watcher: null,
+        timer: null,
+        heartbeat: null,
+        lastHash: await readManifestHash(project),
+        ownHashes: new Set(),
+        // Asset files we wrote ourselves, so their events are not reported as external.
+        ownFiles: new Map(),
+        pending: new Set()
+    };
+    subscriptions.set(projectId, subscription);
+
+    try {
+        // Coalesce bursts: editors write-then-rename, and FSEvents reports generously.
+        subscription.watcher = watch(project.path, { recursive: true }, (_event, filename) => {
+            if (filename) subscription.pending.add(filename);
+            clearTimeout(subscription.timer);
+            subscription.timer = setTimeout(() => {
+                const changed = new Set(subscription.pending);
+                subscription.pending.clear();
+                onFolderChange(projectId, project, changed).catch((error) => {
+                    console.warn(`Could not read the project folder change: ${error.message}`);
+                });
+            }, WATCH_DEBOUNCE);
+        });
+        subscription.watcher.on('error', (error) => {
+            console.warn(`Stopped watching the project folder: ${error.message}`);
+            stopWatching(projectId);
+        });
+    } catch (error) {
+        console.warn(`Could not watch the project folder: ${error.message}`);
+    }
+
+    subscription.heartbeat = setInterval(() => {
+        for (const client of subscription.clients) {
+            try {
+                client.write(': ping\n\n');
+            } catch {
+                subscription.clients.delete(client);
+            }
+        }
+    }, HEARTBEAT_INTERVAL);
+
+    return subscription;
+};
+
+// Remove directories left empty after a delete, stopping at (and never removing) assets/.
+const pruneEmptyDirectories = async (directory, stopAt) => {
+    let current = directory;
+    while (current.startsWith(`${stopAt}${sep}`)) {
+        try {
+            await rmdir(current);
+        } catch {
+            // not empty, already gone, or racing another write - either way stop climbing
+            return;
+        }
+        current = dirname(current);
+    }
+};
+
+// Asset payloads mirror the editor's folder tree, so a relative subdirectory is allowed
+// here. Absolute paths and any '..' traversal are not; the resolved-prefix check below is
+// the backstop.
 const assetPath = (project, filename) => {
-    if (!filename || basename(filename) !== filename || filename === '.' || filename === '..') return null;
+    if (!filename) return null;
+    const segments = filename.split(/[/\\]+/).filter(Boolean);
+    if (!segments.length) return null;
+    if (segments.some((segment) => segment === '.' || segment === '..')) return null;
     const assetsDirectory = resolve(project.path, 'assets');
-    const target = resolve(assetsDirectory, filename);
+    const target = resolve(assetsDirectory, ...segments);
     return target.startsWith(`${assetsDirectory}${sep}`) ? { assetsDirectory, target } : null;
 };
 
@@ -219,10 +407,34 @@ const handleProjectApi = async (request, response, url) => {
     }
 
     const manifestFilename = join(project.path, projectFilename);
+    // Live-change stream: one watcher per project, started with the first subscriber and
+    // closed with the last, so nothing is watched while no tab is open.
+    if (request.method === 'GET' && segments[3] === 'events' && segments.length === 4) {
+        response.writeHead(200, {
+            'Content-Type': 'text/event-stream; charset=utf-8',
+            'Cache-Control': 'no-store',
+            Connection: 'keep-alive',
+            'X-Accel-Buffering': 'no'
+        });
+        response.flushHeaders?.();
+
+        const subscription = subscriptions.get(id) || (await startWatching(id, project));
+        subscription.clients.add(response);
+        response.write(`data: ${JSON.stringify({ type: 'ready', revision: subscription.lastHash })}\n\n`);
+
+        request.on('close', () => {
+            subscription.clients.delete(response);
+            if (!subscription.clients.size) stopWatching(id);
+        });
+        return true;
+    }
+
     if (segments[3] === 'manifest' && segments.length === 4) {
         if (request.method === 'GET') {
             try {
-                sendJson(response, 200, JSON.parse(await readFile(manifestFilename, 'utf8')));
+                const contents = await readFile(manifestFilename, 'utf8');
+                // The revision lets the client detect that the file moved on underneath it.
+                sendJson(response, 200, { ...JSON.parse(contents), revision: hashOf(contents) });
             } catch (error) {
                 if (error.code === 'ENOENT') sendJson(response, 404, { error: 'Project has not been created yet.' });
                 else throw error;
@@ -230,9 +442,26 @@ const handleProjectApi = async (request, response, url) => {
             return true;
         }
         if (request.method === 'PUT') {
-            const data = await readJsonBody(request);
-            await writeFile(manifestFilename, JSON.stringify(data, null, 2), 'utf8');
-            sendJson(response, 200, { saved: true });
+            const body = await readJsonBody(request);
+            const { baseRevision, ...data } = body;
+
+            // A base revision that no longer matches disk means someone else wrote in the
+            // meantime; report the conflict instead of silently discarding their work.
+            if (baseRevision !== undefined) {
+                const current = await readManifestHash(project);
+                if (current && current !== baseRevision) {
+                    sendJson(response, 409, {
+                        error: 'The project folder changed since this version was loaded.',
+                        revision: current
+                    });
+                    return true;
+                }
+            }
+
+            const contents = JSON.stringify(data, null, 2);
+            rememberWrite(id, contents);
+            await writeFile(manifestFilename, contents, 'utf8');
+            sendJson(response, 200, { saved: true, revision: hashOf(contents) });
             return true;
         }
     }
@@ -256,8 +485,9 @@ const handleProjectApi = async (request, response, url) => {
             return true;
         }
         if (request.method === 'PUT') {
-            await mkdir(location.assetsDirectory, { recursive: true });
+            await mkdir(dirname(location.target), { recursive: true });
             await pipeline(request, createWriteStream(location.target));
+            rememberAssetWrite(id, segments[4]);
             sendJson(response, 200, { saved: true });
             return true;
         }
@@ -267,6 +497,8 @@ const handleProjectApi = async (request, response, url) => {
             } catch (error) {
                 if (error.code !== 'ENOENT') throw error;
             }
+            rememberAssetWrite(id, segments[4]);
+            await pruneEmptyDirectories(dirname(location.target), location.assetsDirectory);
             response.writeHead(204).end();
             return true;
         }

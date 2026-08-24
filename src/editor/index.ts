@@ -142,6 +142,7 @@ import './viewport/gizmo/gizmo-view-cube';
 import './assets/assets-registry';
 import './assets/assets-sync';
 import './assets/assets-fs';
+import './local/local-sync';
 import './assets/assets-panel';
 import './assets/assets-context-menu';
 import './assets/assets-upload';

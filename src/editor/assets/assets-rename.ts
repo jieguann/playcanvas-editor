@@ -1,7 +1,44 @@
 const TEXT_TYPES = new Set(['css', 'html', 'json', 'script', 'shader', 'text']);
 
+type LocalRenameUpdates = Map<number, { path: number[]; localPath: string | null }>;
+
 editor.once('load', () => {
     const changeName = function (assetId: string | number, assetName: string, callback?: (error?: unknown) => void) {
+        // Local mode has no REST backend. Write the manifest, move the payload to match the
+        // new name, then set 'name' on the observer to refresh the panel.
+        const localStore = editor.api.globals.localStore;
+        if (localStore) {
+            localStore
+                .renameAsset(parseInt(String(assetId), 10), assetName)
+                .then((result: { error?: string; updates?: LocalRenameUpdates }) => {
+                    if (result.error) {
+                        editor.call('status:error', `Couldn't update the name: ${result.error}`);
+                        callback?.(result.error);
+                        return;
+                    }
+                    // The payload may have moved, so re-sync localPath too - it is in the
+                    // editor's sync list and a stale value would overwrite the manifest.
+                    for (const [id, update] of result.updates ?? []) {
+                        const affected = editor.call('assets:get', id);
+                        if (!affected) continue;
+                        const history = affected.history?.enabled;
+                        if (affected.history) affected.history.enabled = false;
+                        if (update.localPath !== null && affected.get('file')) {
+                            affected.set('file.localPath', update.localPath);
+                        }
+                        if (id === parseInt(String(assetId), 10)) affected.set('name', assetName);
+                        if (affected.history) affected.history.enabled = history;
+                    }
+                    callback?.();
+                })
+                .catch((error: unknown) => {
+                    console.warn(`rename error: ${error}`);
+                    editor.call('status:error', "Couldn't update the name.");
+                    callback?.(error);
+                });
+            return;
+        }
+
         editor.api.globals.rest.assets
             .assetUpdate(String(assetId), { name: assetName })
             .on('load', () => callback?.())

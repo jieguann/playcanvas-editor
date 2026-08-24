@@ -97,6 +97,24 @@ class LocalDocument extends Events {
         }
     }
 
+    /**
+     * Apply an operation that came from outside the editor - a hand-edit to the project
+     * folder - and emit it as remote.
+     *
+     * `submitOp` marks operations local, which is what stops the editor's own changes from
+     * echoing back into it; the same flag would also suppress an external change, so these
+     * are emitted with `local = false` to reach the inbound handlers. The store already
+     * holds the new documents, so this deliberately does not write back.
+     */
+    applyRemoteOp(operations: JsonOp[]) {
+        try {
+            for (const operation of operations) this.data = applyOperation(this.data, operation);
+            this.emit('op', operations, false);
+        } catch (error) {
+            this.emit('error', error);
+        }
+    }
+
     whenNothingPending(callback: (...args: any[]) => unknown) {
         queueMicrotask(callback);
     }
@@ -117,6 +135,8 @@ class LocalRealtimeConnection extends RealtimeConnection {
     private _localRealtime: Realtime;
 
     private _localState: 'connecting' | 'connected' | 'disconnected' = 'disconnected';
+
+    private _openDocuments = new Map<string, LocalDocument>();
 
     constructor(realtime: Realtime, store: LocalProjectStore) {
         super(realtime);
@@ -150,11 +170,28 @@ class LocalRealtimeConnection extends RealtimeConnection {
     }
 
     override getDocument(collection: string, id: number) {
-        return new LocalDocument(this._store, collection, id.toString()) as any;
+        return this.documentFor(collection, id.toString()) as any;
     }
 
     get(collection: string, id: string) {
-        return new LocalDocument(this._store, collection, id);
+        return this.documentFor(collection, id);
+    }
+
+    /**
+     * The document for a collection entry, reused across calls.
+     *
+     * Callers used to get a fresh instance every time, so nothing could reach the live one
+     * to deliver an external change - and two subscribers to the same document held
+     * independent copies of its data.
+     */
+    documentFor(collection: string, id: string) {
+        const key = `${collection}/${id}`;
+        let document = this._openDocuments.get(key);
+        if (!document) {
+            document = new LocalDocument(this._store, collection, id);
+            this._openDocuments.set(key, document);
+        }
+        return document;
     }
 
     override startBulkSubscribe() {
